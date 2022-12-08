@@ -31,12 +31,7 @@ df_orders = spark.read.format(file_type) \
   .option("sep", delimiter) \
   .load(file_location)
 
-df_orders = df_orders.withColumn("SubTotal", df_orders.SubTotal.cast('double'))
-df_orfers = df_orders.withColumn("TaxAmt", df_orders.SubTotal.cast('double'))
-df_oreders = df_orders.withColumn("Freight", df_orders.SubTotal.cast('double'))
-df_orders = df_orders.withColumn("TotalDue", df_orders.SubTotal.cast('double'))
-
-display(df)
+display(df_orders)
 
 # COMMAND ----------
 
@@ -113,10 +108,10 @@ customers_df.printSchema()
 distinct_customers = df_customers.distinct()
 display(distinct_customers)
 
-
 # COMMAND ----------
 
 display(df_customers)
+
 if df_customers.select("CustomerId").distinct() != df_customers.select("CustomerId").count():
     raise ValueError('Duplicates Detected in Customer Id')
 
@@ -131,12 +126,9 @@ if df_customers.select("CustomerId").distinct() != df_customers.select("Customer
 # COMMAND ----------
 
 #How to get the +1? With Elif? 
-#from pyspark.sql.functions import col, regexp_replace
-#df.withColumn("PhoneNumber", regexp_replace(col("PhoneNumber"), "+1XXXXXXXXXXX" , "+1XXXXXXXXXXX")).show()
+from pyspark.sql import functions as unify_phonenumbers
 
-from pyspark.sql import functions as F
-
-df_customers = df_customers.withColumn("PhoneNumber", F.regexp_replace(F.regexp_replace(F.regexp_replace(F.regexp_replace(F.regexp_replace("PhoneNumber", "-", ""), "\\(", ""), "\\)", ""), " ", ""), "111", ""))
+df_customers = df_customers.withColumn("PhoneNumber", unify_phonenumbers.regexp_replace(unify_phonenumbers.regexp_replace(unify_phonenumbers.regexp_replace(unify_phonenumbers.regexp_replace(unify_phonenumbers.regexp_replace("PhoneNumber", "-", ""), "\\(", ""), "\\)", ""), " ", ""), "111", ""))
 
 display(df_customers)
 
@@ -150,7 +142,7 @@ display(df_customers)
 
 # COMMAND ----------
 
-# Load the data from its source.
+# Load the data from its source
 file_location ="dbfs:/FileStore/Databricks/Data/Aw_customers.csv"
 file_type="csv"
 
