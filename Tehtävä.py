@@ -15,7 +15,7 @@
 # Task number one 1 made with UI
 
 # File location and type
-file_location = "/FileStore/tables/Data/Aw_orders_archive.csv"
+file_location = "/FileStore/harjoitusdata/Aw_orders_archive.csv"
 file_type = "csv"
 
 # CSV options
@@ -24,6 +24,7 @@ first_row_is_header = "true"
 delimiter = ";"
 
 # The applied options are for CSV files. For other file types, these will be ignored.
+#[Luke] Huomaa, että tämän jäljiltä numeeriset sarakkeet ovat merkkijonotyyppisiä. Raakadata on tuotu järjestelmästä, jossa desimaalierotin on pilkku (kuten varsin useassa ei-englanninkielisessä maassa). Tämä pitää käsitellä tuontivaiheessa. InferSchema toimii tiettyyn rajaan asti, mutta se voi olla hidas. Turvallisempaa on määritellä skeema käsin, jolloin myöskään ei ole vaaraa epädeterministisistä ilmiöistä eri lukukertojen välillä.
 df_orders = spark.read.format(file_type) \
   .option("inferSchema", infer_schema) \
   .option("header", first_row_is_header) \
@@ -36,11 +37,11 @@ display(df_orders)
 
 #Task 1 made without UI
 
-orders_csv_path ="dbfs:/FileStore/Databricks/Data/Aw_orders_archive.csv"
+orders_csv_path ="dbfs:/FileStore/harjoitusdata/Aw_orders_archive.csv"
 
 orders_df = (spark
            .read
-           .option("sep", "\t")
+           .option("sep", "\t") #[Luke] Huomaa sarake-erotin! Tässä puolipiste (ei tabulaattori), mikä näkyy tuossa skeemassa niin, että dataframessa on nyt vain yksi sarake.
            .option("header", True)
            .option("inferSchema", True)
            .csv(orders_csv_path)
@@ -59,7 +60,7 @@ orders_df.printSchema()
 # Task 2 made with UI
 
 # File location and type
-file_location = "/FileStore/tables/Data/Aw_customers.csv"
+file_location = "/FileStore/harjoitusdata/Aw_customers.csv"
 file_type = "csv"
 
 # CSV options
@@ -68,6 +69,7 @@ first_row_is_header = "true"
 delimiter = ";"
 
 # The applied options are for CSV files. For other file types, these will be ignored.
+#[Luke] Huomaa myös tiedoston merkistökoodaus: lähdetiedosto on ANSIa, joten nyt erikoismerkit menevät väärin, kts. esim. asiakas 29497, Ferrier François
 df_customers = spark.read.format(file_type) \
   .option("inferSchema", infer_schema) \
   .option("header", first_row_is_header) \
@@ -80,7 +82,7 @@ display(df_customers)
 
 #Task 2 made without UI
 
-customers_csv_path ="dbfs:/FileStore/Databricks/Data/Aw_customers.csv"
+customers_csv_path ="dbfs:/FileStore/harjoitusdata/Aw_customers.csv"
 
 customers_df = (spark
            .read
@@ -114,6 +116,8 @@ display(df_customers)
 if df_customers.select("CustomerId").distinct() != df_customers.select("CustomerId").count():
     raise ValueError('Duplicates Detected in Customer Id')
 
+#[Luke] Epäyhtälön vasemmalta puolelta puuttuu .count(). .distinct palauttaa dataframen, jota ei voi mielekkäästi verrata oikealla puolella olevaan kokonaislukuun.
+
 # COMMAND ----------
 
 # MAGIC %md 
@@ -124,7 +128,8 @@ if df_customers.select("CustomerId").distinct() != df_customers.select("Customer
 
 # COMMAND ----------
 
-#How to get the +1? With Elif? 
+#How to get the +1? With Elif?
+#[Luke] Esim. If-lauseen sisältävällä UDF:llä
 from pyspark.sql import functions as unify_phonenumbers
 
 df_customers = df_customers.withColumn("PhoneNumber", unify_phonenumbers.regexp_replace(unify_phonenumbers.regexp_replace(unify_phonenumbers.regexp_replace(unify_phonenumbers.regexp_replace(unify_phonenumbers.regexp_replace("PhoneNumber", "-", ""), "\\(", ""), "\\)", ""), " ", ""), "111", ""))
@@ -142,7 +147,8 @@ display(df_customers)
 # COMMAND ----------
 
 # Load the data from its source
-file_location ="dbfs:/FileStore/Databricks/Data/Aw_customers.csv"
+# [Luke] Idea oli viedä nuo siistityt asiakastiedot tauluksi, mutta näinhän tämä menee
+file_location ="dbfs:/FileStore/harjoitusdata/Aw_customers.csv"
 file_type="csv"
 
 infer_schema = "false"
@@ -159,6 +165,10 @@ df = spark.read.format(file_type) \
 # Write the data to a table.
 table_name = "Customers"
 df.write.saveAsTable(table_name)
+
+# COMMAND ----------
+
+
 
 # COMMAND ----------
 
@@ -186,10 +196,10 @@ df.write.saveAsTable(table_name)
 # COMMAND ----------
 
 # Load the data from its source.
-file_location ="dbfs:/FileStore/Databricks/Data/Aw_orders_archive.csv", "dbfs:/FileStore/Databricks/Data/Aw_orders_20220630.csv"
+file_location ="dbfs:/FileStore/harjoitusdata/Aw_orders_archive.csv", "dbfs:/FileStore/harjoitusdata/Aw_orders_20220630.csv"    #Jotta tämä toimisi, ympärillä pitäisi olla kulmasulkeet, jotta se olisi lista. Nyt se on tuple, joka ei kelpaa Sparkin dataframereaderille. Toisaalta tässä oli ajatuksena, että data liitettäisiin siihen jo aiemmin luotuun Delta-tauluun.
 file_type="csv"
 
-infer_schema = "false"
+infer_schema = "false"  #nyt kaikesta tulee merkkijonotyyppistä, koska skeemaa ei ole määritelty
 first_row_is_header = "true"
 delimiter = ";"
 
@@ -201,12 +211,16 @@ df = spark.read.format(file_type) \
 
 
 # Write the data to a table.
- table_name = "orders_active"
- df.write.saveAsTable(table_name)
+table_name = "orders_active"
+df.write.saveAsTable(table_name)
 
 # Select only 
 # df_orders_active = orders_active.select("SalesOrderID", "OrderDate", "DueDate", "ShipDate", "SalesOrderNumber", "TerritoryId", "SubTotal", "TaxAmt", "Freight", "TotalDue")
 display(df_orders_active)
+
+# COMMAND ----------
+
+df.schema
 
 # COMMAND ----------
 
