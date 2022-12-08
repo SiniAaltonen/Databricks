@@ -186,7 +186,7 @@ df.write.saveAsTable(table_name)
 # COMMAND ----------
 
 # Load the data from its source.
-file_location ="dbfs:/FileStore/Databricks/Data/Aw_orders_archive.csv"
+file_location ="dbfs:/FileStore/Databricks/Data/Aw_orders_archive.csv", "dbfs:/FileStore/Databricks/Data/Aw_orders_20220630.csv"
 file_type="csv"
 
 infer_schema = "false"
@@ -205,7 +205,7 @@ df = spark.read.format(file_type) \
  df.write.saveAsTable(table_name)
 
 # Select only 
-df_orders_active = orders_active.select("SalesOrderID", "OrderDate", "DueDate", "ShipDate", "SalesOrderNumber", "TerritoryId", "SubTotal", "TaxAmt", "Freight", "TotalDue")
+# df_orders_active = orders_active.select("SalesOrderID", "OrderDate", "DueDate", "ShipDate", "SalesOrderNumber", "TerritoryId", "SubTotal", "TaxAmt", "Freight", "TotalDue")
 display(df_orders_active)
 
 # COMMAND ----------
