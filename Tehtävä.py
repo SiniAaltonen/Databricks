@@ -1,6 +1,5 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC 
 # MAGIC # Lue Aw_orders_archive.csv dataframena
 # MAGIC 
 # MAGIC Lue Aw_orders_archive.csv dataframena. 
