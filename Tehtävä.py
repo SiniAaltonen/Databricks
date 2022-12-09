@@ -116,6 +116,15 @@ if df_customers.select("CustomerId").distinct() != df_customers.select("Customer
 
 # COMMAND ----------
 
+# Esimerkillinen vastaus siihen, onko CustomerId:t uniikkeja
+rows = df_customers.count() #lasketaan rivit
+unique_rows = df_customers.dropDuplicates(['CustomerId']).count() # pudotetaan CustomerId-duplikaatit ja lasketaan rivit uudelleen
+
+if rows != unique_rows: # jos alkuperäisen dataframen rivit olivat uniikkeja, rivimäärien pitäisi olla samat. Heitetään virhe, jos näin ei ole.
+    raise Exception('Asiakasrivit eivät ole uniikkeja.')
+
+# COMMAND ----------
+
 # MAGIC %md 
 # MAGIC 
 # MAGIC # Yhtenäistä puhelinnumerot
@@ -131,6 +140,43 @@ df_customers = df_customers.withColumn("PhoneNumber", unify_phonenumbers.regexp_
 
 display(df_customers)
 
+
+# COMMAND ----------
+
+from pyspark.sql.functions import col
+# Esimerkillinen vastaus, miten formatoida puhelinnumerot 
+##Numeroita vaikuttaa pääsääntöisesti olevan kahta tyyppiä: XXX-XXX-XXXX ja 1 (11) 500 555-0132
+##Pitää siis:
+##1. Poistaa väliviivat, sulkeet ja välit
+##2. Palauttaa tässä vaiheessa tyhjä arvo, jos lopputulos ei ole numeerinen tai on tyhjä
+##3. Lisätä eteen 1, jos ensimmäinen numero ei ole 1
+##4. Lisätä eteen +
+##5. Palauttaa lopputulos
+
+##Hoidetaan asia käyttäjämääritteisellä funktiolla (UDF):
+
+def phone_checker(phonenum:str) -> str:
+    if not isinstance(phonenum, str):
+        return None
+    #1
+    bad_chars = '-() ' # listataan epäkelvot merkit
+    bad_trans = str.maketrans('','',bad_chars) # tehdään käännöstaulu
+    fixnum = phonenum.translate(bad_trans) # tehdään merkkien poisto translate-metodilla
+    
+    #2
+    if not fixnum.isnumeric():
+        return None
+    
+    #3
+    if fixnum[0] != 1:
+        fixnum = '1' + fixnum
+        
+    #4
+    fixnum = '+' + fixnum
+    return fixnum
+    
+phone_checker_udf = udf(phone_checker) # määritellään UDF
+df_customers = df_customers.withColumn('PhoneNumber',phone_checker_udf(col('PhoneNumber'))) # korvataan PhoneNumber-sarake UDF-käsitellyllä PhoneNubmer-sarakkeella
 
 # COMMAND ----------
 
@@ -159,6 +205,23 @@ df = spark.read.format(file_type) \
 # Write the data to a table.
 table_name = "Customers"
 df.write.saveAsTable(table_name)
+
+# COMMAND ----------
+
+# Esimerkkilinen tapa kirjoittaa df_customers Delta tauluksi
+# Määritellään kirjoituskohde
+
+delta_root = "dbfs:/FileStore/Databricks/Data/Aw_customers.csv"
+tablename = 'customers'
+customers_output_path = delta_root + tablename
+
+# Kirjoitetaan Deltaan
+(df_customers
+ .write
+ .format("delta")
+ .mode("overwrite")
+ .save(customers_output_path)
+)
 
 # COMMAND ----------
 
